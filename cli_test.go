@@ -21,8 +21,8 @@ func Test_NewCli(t *testing.T) {
 
 type TestCommand struct{}
 
-func (testCommand TestCommand) Usage() string             { return "usage message" }
-func (testCommand TestCommand) Run([]string) (int, error) { return 0, nil }
+func (testCommand TestCommand) Usage() string                       { return "usage message" }
+func (testCommand TestCommand) Run([]string, []string) (int, error) { return 0, nil }
 
 func Test_AddCommand(t *testing.T) {
 	c, err := cli.NewCli("command_name", "someversion")
@@ -39,7 +39,7 @@ func Test_AddCommand(t *testing.T) {
 	}
 }
 
-func Test_Run(t *testing.T) {
+func Test_Run_InvalidCommand(t *testing.T) {
 	commandName := "command_name"
 	c, err := cli.NewCli(commandName, "1.0")
 	if err != nil {
@@ -48,11 +48,70 @@ func Test_Run(t *testing.T) {
 
 	os.Args = []string{commandName, "arg1", "arg2"}
 
+	if exitStatus, err := c.Run(); err.Error() != "invalid command" {
+		t.Errorf("Run returned unexpected status or error: %d, %s", exitStatus, err)
+	}
+	if len(c.Args) != 1 {
+		t.Errorf("c contains unexpected number of arguments: %s", c.Args)
+	}
+}
+
+func Test_Run_WithVersionFlag(t *testing.T) {
+	commandName := "command_name"
+	c, err := cli.NewCli(commandName, "1.0")
+	if err != nil {
+		t.Errorf("NewCli with valid params returned unexpected error: %s", err)
+	}
+
+	os.Args = []string{commandName, "--version", "subcommand", "arg"}
+
 	exitStatus, err := c.Run()
 	if exitStatus != 0 || err != nil {
 		t.Errorf("Run returned unexpected status or error: %d, %s", exitStatus, err)
 	}
-	if len(c.Args) != 2 {
+	if len(c.Args) != 1 {
+		t.Errorf("c contains unexpected number of arguments: %s", c.Args)
+	}
+}
+
+func Test_Run_WithHelpFlag(t *testing.T) {
+	commandName := "command_name"
+	c, err := cli.NewCli(commandName, "4.5.5")
+	if err != nil {
+		t.Errorf("NewCli with valid params returned unexpected error: %s", err)
+	}
+
+	os.Args = []string{commandName, "--help", "subcommand", "arg"}
+
+	exitStatus, err := c.Run()
+	if exitStatus != 0 || err != nil {
+		t.Errorf("Run returned unexpected status or error: %d, %s", exitStatus, err)
+	}
+	if len(c.Args) != 1 {
+		t.Errorf("c contains unexpected number of arguments: %s", c.Args)
+	}
+}
+
+func Test_Run_TestCommand(t *testing.T) {
+	commandName := "command_name"
+	c, err := cli.NewCli(commandName, "4.5.5")
+	if err != nil {
+		t.Errorf("NewCli with valid params returned unexpected error: %s", err)
+	}
+
+	subCommand := "test"
+	c.AddCommand(subCommand, func() (cli.Command, error) { return TestCommand{}, nil })
+
+	os.Args = []string{commandName, "--someflag", subCommand, "somearg"}
+
+	exitStatus, err := c.Run()
+	if exitStatus != 0 || err != nil {
+		t.Errorf("Run returned unexpected status or error: %d, %s", exitStatus, err)
+	}
+	if len(c.Flags) != 1 {
+		t.Errorf("c contains unexpected number of flags %s", c.Flags)
+	}
+	if len(c.Args) != 1 {
 		t.Errorf("c contains unexpected number of arguments: %s", c.Args)
 	}
 }

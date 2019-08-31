@@ -2,7 +2,7 @@ package cli
 
 type Command interface {
 	Usage() string
-	Run(args []string) (int, error)
+	Run(flags, args []string) (int, error)
 }
 
 type CommandFactory func() (Command, error)
